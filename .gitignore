@@ -1,0 +1,7 @@
+*.o
+*.mod.c
+*.cmd
+*.ko
+.tmp_versions
+modules.*
+Module.*
