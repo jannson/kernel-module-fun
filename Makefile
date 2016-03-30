@@ -8,6 +8,7 @@ obj-m += rootkit.o
 obj-m += excited_virus.o
 obj-m += redirect.o
 obj-m += tproxy.o
+obj-m += modifyskb.o
 
 NET=/projects/R8500-V1.0.2.54_1.0.56_src/components/opensource/linux/linux-2.6.36
 

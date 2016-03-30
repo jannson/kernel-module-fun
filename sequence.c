@@ -4,10 +4,8 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
 
-/*
- * http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html
- * /
- *
+/* http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html */
+ 
 MODULE_LICENSE("GPL");
 
 inline void dumpIpHdr(const char *fn, const struct sk_buff *skb)

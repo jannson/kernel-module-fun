@@ -17,9 +17,9 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("kenthy@163.com");
 
-#define    ETH     "eth0"
-#define    SIP     "192.168.238.180"
-#define    DIP     "192.168.1.101"
+#define    ETH     "br0"
+#define    SIP     "192.168.1.1"
+#define    DIP     "192.168.1.23"
 #define    SPORT   39804
 #define    DPORT   80
 
@@ -27,11 +27,11 @@ MODULE_AUTHOR("kenthy@163.com");
 
 unsigned char   SMAC[ETH_ALEN] = {0x00,0x0C,0x29,0x4F,0xDE,0xAC};
 unsigned char   DMAC[ETH_ALEN] = {0x00,0x50,0x56,0xFA,0x70,0x2A};
+
 int cp_dev_xmit_tcp(char * eth, u_char * smac, u_char * dmac,
              u_char * pkt, int pkt_len,
              u_long sip, u_long dip,
-             u_short sport, u_short dport, u_long seq, u_long ack_seq, u_char psh, u_char fin)
-{
+             u_short sport, u_short dport, u_long seq, u_long ack_seq, u_char psh, u_char fin) {
   struct sk_buff * skb = NULL;
   struct net_device * dev = NULL;
   struct ethhdr * ethdr = NULL;
@@ -39,30 +39,39 @@ int cp_dev_xmit_tcp(char * eth, u_char * smac, u_char * dmac,
   struct tcphdr * tcph = NULL;
   u_char * pdata = NULL;
   int nret = 1;
-  if (NULL == smac || NULL == dmac) goto out;
-  dev = dev_get_by_name(eth);
-  if (NULL == dev)
-   goto out;
-  skb = alloc_skb (pkt_len + sizeof (struct iphdr) + sizeof (struct tcphdr) + LL_RESERVED_SPACE (dev), GFP_ATOMIC);
-  if (NULL == skb)
-    goto out;
-  skb_reserve (skb, LL_RESERVED_SPACE (dev));
+
+  if (NULL == smac || NULL == dmac) {
+      goto out;
+  }
+
+  dev = dev_get_by_name(&init_net, eth);
+  if (NULL == dev) {
+      goto out;
+  }
+
+  skb = alloc_skb(pkt_len + sizeof (struct iphdr) + sizeof (struct tcphdr) + LL_RESERVED_SPACE(dev), GFP_ATOMIC);
+  if (NULL == skb) {
+      goto out;
+  }
+
+  skb_reserve(skb, LL_RESERVED_SPACE (dev));
   skb->dev = dev;
   skb->pkt_type = PACKET_OTHERHOST;
   skb->protocol = __constant_htons(ETH_P_IP);
   skb->ip_summed = CHECKSUM_NONE;
   skb->priority = 0;
-  skb->nh.iph = (struct iphdr*)skb_put(skb, sizeof (struct iphdr));
-  skb->h.th = (struct tcphdr*)skb_put(skb, sizeof (struct tcphdr));
-  pdata = skb_put (skb, pkt_len);
+  iph = (struct iphdr*)skb_put(skb, sizeof (struct iphdr));
+  tcph = (struct tcphdr*)skb_put(skb, sizeof (struct tcphdr));
+  pdata = skb_put(skb, pkt_len);
+
   {
-    if (NULL != pkt)
-     memcpy (pdata, pkt, pkt_len);
+      if (NULL != pkt) {
+          memcpy (pdata, pkt, pkt_len);
+      }
   }
 
   {
-    tcph = (struct tcphdr *) skb->h.th;
-    memset (tcph, 0, sizeof (struct tcphdr));
+    memset(tcph, 0, sizeof (struct tcphdr));
     tcph->source = sport;
     tcph->dest = dport;
     tcph->seq = seq;
@@ -78,7 +87,6 @@ int cp_dev_xmit_tcp(char * eth, u_char * smac, u_char * dmac,
   }
 
   {
-    iph = (struct iphdr*) skb->nh.iph;
     iph->version = 4;
     iph->ihl = sizeof(struct iphdr)>>2;
     iph->frag_off = 0;
@@ -90,31 +98,45 @@ int cp_dev_xmit_tcp(char * eth, u_char * smac, u_char * dmac,
     iph->tot_len = __constant_htons(skb->len);
     iph->check = 0;
   }
+  printk("skb len=%d\n", skb->len);
 
-  skb->csum = skb_checksum (skb, iph->ihl*4, skb->len - iph->ihl * 4, 0);
-  tcph->check = csum_tcpudp_magic (sip, dip, skb->len - iph->ihl * 4, IPPROTO_TCP, skb->csum);
-  skb->mac.raw = skb_push (skb, 14);
+  /* skb->csum = skb_checksum(skb, iph->ihl*4, skb->len - iph->ihl * 4, 0);
+  tcph->check = csum_tcpudp_magic(sip, dip, skb->len - iph->ihl * 4, IPPROTO_TCP, skb->csum); */
+
+  skb->csum = csum_partial((uint16_t*)tcph, skb->len - iph->ihl * 4, 0);
+  tcph->check = csum_tcpudp_magic(sip, dip, skb->len - iph->ihl * 4, IPPROTO_TCP, skb->csum);
+  iph->check = ip_fast_csum(iph, iph->ihl);
+
+  ethdr = (struct ethhdr*)skb_push(skb, 14);
 
   {
-    ethdr = (struct ethhdr *)skb->mac.raw;
     memcpy (ethdr->h_dest, dmac, ETH_ALEN);
     memcpy (ethdr->h_source, smac, ETH_ALEN);
     ethdr->h_proto = __constant_htons (ETH_P_IP);
   }
 
-  if (0 > dev_queue_xmit(skb)) goto out;
+  if (0 > dev_queue_xmit(skb)) {
+      goto out;
+  }
+
   nret = 0;
+
 out:
-  if (0 != nret && NULL != skb) {dev_put (dev); kfree_skb (skb);}
+  if (0 != nret && NULL != skb)
+  {
+      dev_put (dev);
+      kfree_skb (skb);
+  }
+
   return (nret);
 }
 
 static int __init init(void)
 {
-  printk("%sn","insmod skb_diy modulen");
-   cp_dev_xmit_tcp (ETH, SMAC, DMAC,NULL, 0,
-                    in_aton(SIP),in_aton(DIP),
-                    htons(SPORT),htons(DPORT),
+    printk("%sn","insmod skb_diy modulen");
+    cp_dev_xmit_tcp (ETH, SMAC, DMAC, NULL, 0,
+                    in_aton(SIP), in_aton(DIP),
+                    htons(SPORT), htons(DPORT),
                     0, 0, 0, 0);
     return 0;
 }
@@ -123,5 +145,6 @@ static void __exit fini(void)
 {
     printk("%sn","remove skb_diy module.n");
 }
+
 module_init(init);
 module_exit(fini);
