@@ -6,6 +6,14 @@
 * it under the terms of the GNU General Public License version 2 as
 * published by the Free Software Foundation.
 http://bbs.chinaunix.net/forum.php?mod=viewthread&action=printable&tid=1976797
+TODO: copy and modify skb: http://stackoverflow.com/questions/10245281/using-sk-buff-to-add-an-ethernet-frame-header
+book: http://www.embeddedlinux.org.cn/linux_net/0596002556/understandlni-CHP-2-SECT-1.html
+idea: http://gmd20.blog.163.com/blog/static/16843923200991325910251/
+append data: http://stackoverflow.com/questions/12529497/how-to-append-data-on-a-packet-from-kernel-space
+流程：http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html
+中文系列文章： http://blog.csdn.net/shanshanpt/article/details/21024465
+spinlock sumery: http://blog.csdn.net/wesleyluo/article/details/8807919
+seria2: http://blog.csdn.net/majieyue/article/details/7722632
 */
 
 #include <linux/types.h>
@@ -139,8 +147,8 @@ static int __init tproxy_init(void)
         return nf_register_hook(&tproxy_ops);
 }
 
-/* 
- * rm -f tproxy.ko && wget http://192.168.1.23:8070/static/tproxy.ko 
+/*
+ * rm -f tproxy.ko && wget http://192.168.1.23:8070/static/tproxy.ko
  * */
 static void __exit tproxy_exit(void)
 {
