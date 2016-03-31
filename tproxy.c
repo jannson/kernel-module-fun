@@ -149,7 +149,7 @@ static int __init tproxy_init(void)
 }
 
 /*
- * rm -f modifyskb.ko && wget http://192.168.1.23:8070/static/modifyskb.ko
+ * rm -f sequence.ko && wget http://192.168.1.23:8070/static/sequence.ko
  * */
 static void __exit tproxy_exit(void)
 {

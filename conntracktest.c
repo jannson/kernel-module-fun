@@ -6,6 +6,8 @@
 #include <net/dst.h>
 #include <net/netfilter/nf_conntrack_acct.h>
 
+//http://blog.csdn.net/dog250/article/details/7307798
+//router: http://dog250.blog.51cto.com/2466061/1398368
 
 MODULE_AUTHOR("xtt");
 MODULE_DESCRIPTION("gll");
@@ -28,8 +30,10 @@ static unsigned int ipv4_conntrack_getdst (unsigned int hooknum,
         struct nf_conn_counter *acct;
         struct nf_conn_priv *dst_info;
         ct = nf_ct_get(skb, &ctinfo);
+
         if (!ct || ct == &nf_conntrack_untracked)
                 return NF_ACCEPT;
+
         acct = nf_conn_acct_find(ct);
         if (acct) {
                 int dir = CTINFO2DIR(ctinfo);
@@ -39,6 +43,7 @@ static unsigned int ipv4_conntrack_getdst (unsigned int hooknum,
                         dst_info->dst[dir] = skb_dst(skb);
                 }
         }
+
         return NF_ACCEPT;
 }
 
