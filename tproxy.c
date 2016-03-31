@@ -14,6 +14,7 @@ append data: http://stackoverflow.com/questions/12529497/how-to-append-data-on-a
 中文系列文章： http://blog.csdn.net/shanshanpt/article/details/21024465
 spinlock sumery: http://blog.csdn.net/wesleyluo/article/details/8807919
 seria2: http://blog.csdn.net/majieyue/article/details/7722632
+setsockopt: http://www.programering.com/a/MjMxYjMwATE.html
 */
 
 #include <linux/types.h>
