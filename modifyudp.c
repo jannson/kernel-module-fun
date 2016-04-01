@@ -16,9 +16,17 @@
 #include <net/netfilter/ipv4/nf_defrag_ipv4.h>
 #include <net/netfilter/nf_tproxy_core.h>
 
-/* http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html */
 /*
- 
+ * http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html
+ * TODO conntrack http://www.dedecms.com/knowledge/servers/linux-bsd/2012/1217/17746.html
+ * TODO contrack http://blog.csdn.net/lickylin/article/details/35828205
+ * */
+
+/*
+
+netlink: http://stackoverflow.com/questions/3299386/how-to-use-netlink-socket-to-communicate-with-a-kernel-module
+getorigdst: nf_conntrack_l3proto_ipv4.c
+
 #!/bin/sh
 N=modifyudp
 rm -f ${N}.ko && wget http://192.168.1.23:8070/static/${N}.ko
@@ -27,7 +35,7 @@ rm -f ${N}.ko && wget http://192.168.1.23:8070/static/${N}.ko
 
 ./udp_arm 42.51.158.136:8888 192.168.1.1:9999
 */
- 
+
 MODULE_LICENSE("GPL");
 
 //uint8_t DMAC[ETH_ALEN] = {0x50, 0xE5, 0x49, 0xEC, 0x46, 0x8B};
@@ -155,7 +163,7 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
             printk("stolen\n");
 
             return NF_STOLEN;
-        } 
+        }
 
         skb_push(skb, iph_len);
         skb_reset_transport_header(skb);
@@ -236,7 +244,7 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
             }
 
             return NF_STOLEN;
-        } 
+        }
 
         skb_push(skb, iph_len);
         skb_reset_transport_header(skb);
