@@ -18,6 +18,10 @@
 
 /*
  * http://nano-chicken.blogspot.jp/2010/03/linux-modules12-netfilter.html
+ * ./udp_server_arm -l 192.168.1.1:8888
+ * cat /proc/net/ip_conntrack
+ * strace iptables
+ * export XTABLES_LIBDIR=/usr/lib/iptables
  * TODO conntrack http://www.dedecms.com/knowledge/servers/linux-bsd/2012/1217/17746.html
  * TODO contrack http://blog.csdn.net/lickylin/article/details/35828205
  * */
@@ -63,13 +67,17 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
     struct ethhdr* ethh;
     int total_len, iph_len, ret;
     struct sock *sk;
+
+    uint32_t oldsip;
+    uint16_t oldsport;
     uint32_t olddip;
     uint16_t olddport;
 
-    uint16_t dport = 8888;
+    uint16_t dport = 9999;
     uint32_t sip = in_aton("192.168.1.23");
     //uint32_t dip = in_aton("42.51.158.136");
     uint32_t dip = in_aton("192.168.1.1");
+    uint32_t dip2 = in_aton("10.0.0.1");
 
     skb = __skb;
     if (NULL == skb) {
@@ -90,10 +98,18 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
         skb_reset_transport_header(skb);
         if(IPPROTO_UDP == iph->protocol) {
             udph = udp_hdr(skb);
+
             olddip = iph->daddr;
             olddport = udph->dest;
-            iph->daddr = dip;
+            oldsip = iph->saddr;
+            oldsport = udph->source;
+
+            iph->daddr = dip2;
             udph->dest = htons(dport);
+
+            //iph->saddr = olddip;
+            iph->saddr = in_aton("10.0.1.23");
+            udph->source = olddport;
 
             udph->check = 0;
             skb->csum = csum_partial((uint8_t*)udph
@@ -110,17 +126,26 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
 
             skb->ip_summed = CHECKSUM_NONE;
             skb->pkt_type = PACKET_OTHERHOST;
-            //dev = dev_get_by_name(&init_net, "br0");
-            //skb->dev = dev;
+
+#if 1
+            dev = dev_get_by_name(&init_net, "lo");
+            if (NULL == dev) {
+                return NF_ACCEPT;
+            }
+            skb->dev = dev;
+#endif
+
             skb_push(skb, iph_len);
             ethh = (struct ethhdr*)skb_push(skb, 14);
             memcpy(ethh->h_dest, DMAC, ETH_ALEN);
 
+
+#if 0
             sk = nf_tproxy_get_sock_v4(dev_net(skb->dev)
                     , iph->protocol
-                    , iph->saddr
+                    , oldsip
                     , olddip
-                    , udph->source
+                    , oldsport
                     , olddport
                     , skb->dev
                     , true);
@@ -130,15 +155,37 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
 
             sk = nf_tproxy_get_sock_v4(dev_net(skb->dev)
                     , iph->protocol
-                    , iph->saddr
+                    , oldsip
+                    , dip
+                    , oldsport
+                    , htons(dport)
+                    , skb->dev
+                    , true);
+            if(sk != NULL) {
+                printk("new found sk\n");
+            }
+#endif
+            sk = nf_tproxy_get_sock_v4(dev_net(skb->dev)
+                    , iph->protocol
+                    , oldsip
                     , iph->daddr
-                    , udph->source
+                    , oldsport
                     , udph->dest
                     , skb->dev
                     , true);
             if(sk != NULL) {
                 printk("new found sk\n");
             }
+
+#if 0
+            if (sk) {
+                dev = dev_get_by_name(&init_net, "lo");
+                if (NULL == dev) {
+                    return NF_ACCEPT;
+                }
+                skb->dev = dev;
+            }
+#endif
 
             if (sk && nf_tproxy_assign_sock(skb, sk)) {
                     /* This should be in a separate target, but we don't do multiple
@@ -151,7 +198,7 @@ static unsigned int prerouting(unsigned int hook, struct sk_buff *__skb,
 
                     printk("redirecting: proto %u %08x:%u -> %08x:%u, mark: %x\n",
                              iph->protocol, ntohl(iph->daddr), ntohs(udph->dest),
-                             dip, dport, skb->mark);
+                             ntohl(iph->saddr), ntohs(udph->source), skb->mark);
                     return NF_ACCEPT;
             }
 
@@ -302,7 +349,7 @@ static struct nf_hook_ops brook_ops[] __read_mostly = {
         .hook = prerouting,
         .pf = PF_INET,
         .hooknum = NF_INET_PRE_ROUTING,
-        .priority = NF_IP_PRI_RAW,
+        .priority = NF_IP_PRI_MANGLE,
         .owner = THIS_MODULE,
     }, {
         .hook = localin,
